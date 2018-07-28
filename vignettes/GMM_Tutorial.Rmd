@@ -1,0 +1,371 @@
+---
+title: "GMM Tutorial"
+author: "Katrina Jones & David Polly"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+extdatafiles <- system.file("extdata", package="qpal")
+knitr::opts_knit$set(root.dir = extdatafiles)
+library(rgl)
+knitr::knit_hooks$set(webgl = hook_webgl)
+knitr::opts_chunk$set(fig.width=3, fig.height=3)
+```
+
+
+This tutorial includes code and excersizes used in the 2018 Analytical Paleobiology Course, hosted at University of Florida. Lecture slide pdfs including theoretical content are provided at XXX
+
+Code and datasets associated with this tutorial are available at https://github.com/katrinajones/qpal
+
+#Day 1 - Intro to Geometric Morphometrics in R
+
+##Part 1: Introduction to Geomorph Package
+
+Geomorph provides a flexible tool for analyzing geometric morphometric data. For more information see `?(geomorph)`.
+
+Loading up some data:
+
+```{r, warning=F}
+#load geomorph
+library(geomorph, quietly=T)
+library(qpal, quietly=T) #package including functions for the course
+
+#Get example data - plethodon salamander heads
+data("plethodon") #Load data into environment
+
+#What's included in the dataset
+summary(plethodon)
+
+```
+
+Converting between wide and long data formats:
+
+```{r}
+#Converting between wide and long formats
+#Long to wide
+wide<-two.d.array(plethodon$land)
+wide[1:5,1:5]
+#Wide to long
+long<-arrayspecs(wide, 12, 2)
+long[,,1]
+```
+
+Arrays are much more handy for handling GMM data in R because you can easily access all elements with simple code
+
+```{r, results='hide'}
+#Indexing arrays
+#Get first specimen
+long[,,1]
+#Get first landmark of all specimens
+long[1,,]
+#Get X coordinates of all landmarks
+long[,1,]
+```
+
+Geomorph data frames are a useful way of tidying all your data associated with your landmarks together into a single object, and are the native and sometimes required format for geomorph functions
+
+```{r}
+#Create geomorph data frame
+plethgdf<-geomorph.data.frame(landmarks=long, species=plethodon$species, 
+                              site=plethodon$site)
+summary(plethgdf)
+```
+
+Once your data is all combined into a single geomorph data frame, its very useful to be able to subset it all at once, keeping track of all your separate variables. I’ve included a custom subsetting function I wrote for this purpose.
+
+```{r, fig.show='hold'}
+#plot first five specimens
+plot(plethgdf$landmarks[,,1])
+
+#plot raw data together
+plotAllSpecimens(plethgdf$landmarks, mean=F)
+```
+```{r, results='hide'}
+#plot in same shape space
+Pcoords<-gpagen(plethgdf$landmarks)
+plethgdf<-geomorph.data.frame(plethgdf, coords=Pcoords$coords, 
+                              size=Pcoords$Csize)
+```
+```{r, fig.height=5, fig.width=5}
+plotAllSpecimens(plethgdf$coords, mean=T, links=plethodon$links)
+
+```
+
+Comparing specimens
+
+```{r, results='hide'}
+#Are there any wierd specimens
+plotOutliers(plethgdf$coords)
+```
+```{r, fig.show='hold'}
+#Let's compare them
+shape1<-mshape(plethgdf$coords)#consensus shape
+shape2<-plethgdf$coords[,,14]
+
+#Thin plate spline
+plotRefToTarget(shape1, shape2, method=c("TPS"), mag=2)
+#Lollipops
+plotRefToTarget(shape1, shape2, method=c("vector"), mag=10)
+#Points
+plotRefToTarget(shape1, shape2, method=c("points"), mag=10)
+```
+
+##Part 2: Step-by-step morphometric analysis
+
+This section provides a quick overview of the steps of a GMM analysis in R, which will be followed by a practical in which you will collect and run your own data.
+
+The R package Stereomorph provides a nice interface for collecting landmarks and curves in 2D. You must have either Chrome or Safari installed for this to work.
+
+```{r, results='hide'}
+library(StereoMorph)
+library(abind)
+
+#Digitize 2D landmarks with Stereomorph
+extdatafiles <- system.file("extdata", package="qpal")#find directory where external data are saved
+setwd(extdatafiles)
+```
+```{r, eval=FALSE}
+#Name landmarks
+lands<-c("condyle", "angular", "coronoid", "posterior molar", "tip incisor")
+#Name curves
+curves<-matrix(c("condtocor", "condtoang","condyle","condyle","coronoid",
+                 "angular"), nrow=2,ncol=3)
+#Digitize specimens
+digitizeImage(image.file = 'ShrewsAndMarmots', shapes.file = 'teeth',
+              landmarks.ref = lands, curves.ref = curves)
+```
+
+Read in the data
+
+```{r, results='hide'}
+
+#Look at data based on fixed landmarks only
+teeth<-readShapes('teeth')
+fixed<-teeth$landmarks.scaled
+
+#Procrustes fit
+gpa.lands <- gpagen(fixed)
+```
+```{r, fig.show='hold'}
+plotAllSpecimens(fixed)
+plot(gpa.lands)
+```
+
+Now add the curve sliders
+
+```{r}
+ #With Sliding semi-landmarks
+curves<-teeth$curves.scaled
+
+#resample curves to 3 sliders
+curvelands<-list()
+curvelands<-lapply(curves, function (x) lapply(x, pointsAtEvenSpacing, n=5))#Resample
+curvelands<-lapply(curvelands, do.call, what=rbind)#merge
+curvelands<-array(unlist(curvelands), dim=c(10,2,5))#convert to array
+curvelands<-curvelands[c(2:4,7:9),,]#remove fixed points
+rownames(curvelands)<-rep(c("cu1", "cu2"), each=3) #label
+lands<-abind::abind(fixed, curvelands, along=1) #join with fixed
+```
+ 
+Need to make a 'sliders' file to tell geomorph which ones to slide during the procrustes fit. Here I'm using custom code which makes the sliders file based on the curve labels
+
+```{r, results='hide'}
+#make sliders file
+sliders<-makesliders(rownames(lands),id=c("cu1", "cu2"), begin=c(1,1),
+                     end=c(3,2))
+
+#Procrustes fit
+gpa.lands <- gpagen(lands, curves=sliders)
+```
+```{r}
+plot(gpa.lands)
+```
+
+Now we'll try with a much bigger dataset, based on [insert citation]
+
+```{r}
+##Now lets try with a big dataset of shrewteeth!
+#shrew teeth
+data("shrewteeth")
+summary(shrewteeth)
+```
+```{r, results='hide'}
+#Procrustes fit
+proc<-gpagen(shrewteeth)
+```
+```{r, fig.show='hold'}
+#Plot raw data
+plotAllSpecimens(shrewteeth)
+#plot procrustes coordinates
+plot(proc)
+```
+
+Now lets try putting it in a geomorph data frame
+
+```{r, fig.height=5, fig.width=5}
+#Make geomorph data frame
+group<-as.factor(rep(c("a", "b"), length=dim(shrewteeth)[[3]]))#make up some labels
+shrewdf<-geomorph.data.frame(raw=shrewteeth, coords=proc$coords,
+                             size=proc$Csize, group=group)
+
+#subsample by labels
+a<-subsetgeom(shrewdf, "spec", which(shrewdf$group=="a"), keep=T)
+
+#PCA
+pca.lands <- plotTangentSpace(shrewdf$coords, label=TRUE,
+                              groups = palette()[shrewdf$group])
+shrewdf<-geomorph.data.frame(shrewdf, scores=pca.lands$pc.scores)
+```
+
+Now lets try an interactive 3D plot
+
+```{r testgl, webgl=TRUE}
+plot3d(shrewdf$scores[,1:3])#interactive 3D plots
+text3d(shrewdf$scores[,1:3],texts=rownames(shrewdf$scores),pos=4,cex=.5)
+```
+
+Compare to the mean shape
+
+```{r, fig.show='hold'}
+#Consensus shape
+consensus <- mshape(shrewdf$coords)
+plotAllSpecimens(shrewdf$coords)
+#centroid - midpoint of the landmarks
+centroid <- apply(shrewdf$coords,2,mean)
+points(centroid[1],centroid[2],col="Red", cex=2)
+
+#Visualizing shapes
+plotRefToTarget(consensus,shrewdf$coords[,,1])
+```
+
+Now try it out yourself! Take some photos of your friends faces, ideally from different angles, and try running your own morphometric analysis. Do different faces group separately? Or does error associated with photo angle swamp out the signal?
+
+#Day 2 - By-hand GMM analysis and statistical framework
+
+##Procrustes superimposition
+
+Calculating Procrustes distances by hand
+
+```{r}
+#Calculate distance
+A<-shrewdf$raw[,,1]
+B<-shrewdf$raw[,,2]
+pdist<-sqrt(sum((A-B)^2))
+pdist
+
+#Consensus shape
+consensus <- mshape(shrewdf$coords)
+
+#Procrustes distance
+dists <- array(dim=dim(shrewdf$coords)[3])
+for(i in 1:dim(proc$coords)[3]) 
+{ dists[i] <- sqrt(sum((shrewdf$coords[i]-consensus)^2)) }
+head(sort(dists))
+```
+
+Calculate centroid size
+
+```{r}
+#Centroid size
+shape <- A
+centroid <- apply(shape,2,mean)
+centroidsize <- sqrt(sum((t(t(shape)-centroid))^2))
+
+plot(shape, xlim=c(-800,800), ylim=c(-800,800))
+points(t(centroid), col="red", pch=19)
+```
+
+Run through the steps of a Procrustes Superimposition: Translation, scaling, rotation
+
+Translation
+
+```{r, fig.show='hold'}
+#Translation
+newshape<-t(t(shape)-centroid)
+
+#plot
+plot(shape, xlim=c(-800,800), ylim=c(-800,800), main="Translate")
+points(newshape, col="blue")
+points(t(centroid), col="red")
+newcent<-apply(newshape, 2, mean)
+points(t(newcent), pch=19,col="Red")
+
+#centroid size doesn't change
+newcentsize<-sqrt(sum((t(t(newshape)-newcent))^2))
+centroid
+newcentsize
+
+#scale
+resizedshape <- newshape / centroidsize
+
+#plot
+plot(c(-1,1),c(-1,1),xlab="x",ylab="y", type="n", main="Scale and Rotate")
+points(t(newcent), pch=19)
+points(resizedshape, pch=19,col="Red")
+
+angle <- 45 * pi / 180
+rotmat <- matrix(c(cos(angle),-sin(angle),sin(angle),cos(angle)),byrow=T,ncol=2)
+
+#plot
+points(resizedshape%*%rotmat, pch=19,col="Blue")
+```
+
+##Principal Components Analysis
+
+Three methods for calculating total variance which should always give the same results
+
+```{r}
+nspec<-dim(shrewdf$raw)[3]
+nspec
+sum(apply(shrewdf$coords, 3, function (x) sum((x-consensus)^2)))/(nspec-1)
+sum(pca.lands$sdev^2)
+sum(pca.lands$pc.scores^2)/(nspec-1)
+```
+
+PCA Calculation
+
+```{r}
+#convert procrustes coordinates to wide format for use outside geomorph
+coords2d<-two.d.array(shrewdf$coords) 
+consensusvec<-apply(coords2d, 2, mean)#consensus in vector format
+
+#calculate residuals
+resids<-sweep(proc$coords, c(1,2), consensus)
+
+#calculate covariance matrix
+P<-cov(two.d.array(resids))
+
+#single value decomposition
+pca.stuff<-svd(P)
+eigenvalues <- pca.stuff$d
+eigenvectors <- pca.stuff$u
+scores <- two.d.array(resids)%*%eigenvectors
+```
+
+Calculate variances again to check
+
+```{r}
+sum(apply(coords2d,2,var)) # total variance of Procrustes coordinates
+sum(apply(two.d.array(resids),2,var)) # total variance of Procrustes residuals
+sum(pca.stuff$d) # total variance of singular values
+sum(apply(scores, 2, var)) # total variance of scores
+```
+
+Compare plots
+
+```{r, fig.show='hold'}
+pca<-plotTangentSpace(shrewdf$coords, warpgrids=F)
+plot(scores[,1:2])
+```
+
+##Statistical analysis of GMM data
+

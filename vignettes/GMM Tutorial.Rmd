@@ -1,0 +1,139 @@
+---
+title: "GMM Tutorial"
+author: "Katrina Jones & David Polly"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This tutorial includes code and excersizes used in the 2018 Analytical Paleobiology Course, hosted at University of Florida. Lecture slide pdfs including theoretical content are provided at XXX
+
+Code and datasets associated with this tutorial are available at https://github.com/katrinajones/qpal
+
+#Intro to Geometric Morphometrics in R
+
+##Part 1: Introduction to Geomorph Package
+
+Geomorph provides a flexible tool for analyzing geometric morphometric data. For more information see `?(geomorph)`.
+
+Loading up some data:
+
+```{r, warning=F}
+#load geomorph
+library(geomorph, quietly=T)
+library(qpal, quietly=T) #package including functions for the course
+
+#Get example data - plethodon salamander heads
+data("plethodon") #Load data into environment
+
+#What's included in the dataset
+summary(plethodon)
+
+```
+
+Converting between wide and long data formats:
+
+```{r}
+#Converting between wide and long formats
+#Long to wide
+wide<-two.d.array(plethodon$land)
+wide[1:5,1:5]
+#Wide to long
+long<-arrayspecs(wide, 12, 2)
+long[,,1]
+```
+
+Arrays are much more handy for handling GMM data in R because you can easily access all elements with simple code
+
+```{r, results='hide'}
+#Indexing arrays
+#Get first specimen
+long[,,1]
+#Get first landmark of all specimens
+long[1,,]
+#Get X coordinates of all landmarks
+long[,1,]
+```
+
+Geomorph data frames are a useful way of tidying all your data associated with your landmarks together into a single object, and are the native and sometimes required format for geomorph functions
+
+```{r}
+#Create geomorph data frame
+plethgdf<-geomorph.data.frame(landmarks=long, species=plethodon$species, 
+                              site=plethodon$site)
+summary(plethgdf)
+```
+
+Once your data is all combined into a single geomorph data frame, its very useful to be able to subset it all at once, keeping track of all your separate variables. I’ve included a custom subsetting function I wrote for this purpose.
+
+```{r, fig.show='hold'}
+#plot first five specimens
+plot(plethgdf$landmarks[,,1])
+
+#plot raw data together
+plotAllSpecimens(plethgdf$landmarks, mean=F)
+```
+```{r, results='hide'}
+#plot in same shape space
+Pcoords<-gpagen(plethgdf$landmarks)
+plethgdf<-geomorph.data.frame(plethgdf, coords=Pcoords$coords, 
+                              size=Pcoords$Csize)
+```
+```{r, fig.height=5, fig.width=5}
+plotAllSpecimens(plethgdf$coords, mean=T, links=plethodon$links)
+
+```
+
+Comparing specimens
+
+```{r, results='hide'}
+#Are there any wierd specimens
+plotOutliers(plethgdf$coords)
+```
+```{r, fig.show='hold'}
+#Let's compare them
+shape1<-mshape(plethgdf$coords)#consensus shape
+shape2<-plethgdf$coords[,,14]
+
+#Thin plate spline
+plotRefToTarget(shape1, shape2, method=c("TPS"), mag=2)
+#Lollipops
+plotRefToTarget(shape1, shape2, method=c("vector"), mag=10)
+#Points
+plotRefToTarget(shape1, shape2, method=c("points"), mag=10)
+```
+
+##Part 2: Step-by-step morphometric analysis
+
+This section provides a quick overview of the steps of a GMM analysis in R, which will be followed by a practical in which you will collect and run your own data.
+
+The R package Stereomorph provides a nice interface for collecting landmarks and curves in 2D
+
+```{r, eval=FALSE}
+library(StereoMorph)
+library(abind)
+
+#Digitize 2D landmarks with Stereomorph
+extdatafiles <- system.file("extdata", package="qpal")#find directory where external data are saved
+setwd(extdatafiles)
+
+
+#Name landmarks
+lands<-c("condyle", "angular", "coronoid", "posterior molar", "tip incisor")
+#Name curves
+curves<-matrix(c("condtocor", "condtoang","condyle","condyle","coronoid",
+                 "angular"), nrow=2,ncol=3)
+#Digitize specimens
+digitizeImage(image.file = 'ShrewsAndMarmots', shapes.file = 'teeth',
+              landmarks.ref = lands, curves.ref = curves)
+```

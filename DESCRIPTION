@@ -1,0 +1,15 @@
+Package: qpal
+Type: Package
+Title: Quantitative Paleobiology Course package
+Version: 0.1.0
+Author: K. Jones, D. Polly
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: Library for functions used in Quantitative Paleobiology Course 2018
+    Use four spaces when indenting paragraphs within the Description.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
