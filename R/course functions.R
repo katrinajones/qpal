@@ -15,7 +15,6 @@ model.space <- function(PCscores,dim, eigenvectors, consensus) {
   geomorph::plotRefToTarget(consensus,model,sub=paste("PC1=",PC1," PC2=",PC2,""))
 }
 
-
 #'Subset geomorph data frames
 #'
 #'Allows subsetting of geomorph data frames (and all variables therein) either by specimen or by landmark
