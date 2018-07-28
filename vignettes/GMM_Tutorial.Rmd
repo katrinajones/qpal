@@ -26,6 +26,8 @@ This tutorial includes code and excersizes used in the 2018 Analytical Paleobiol
 
 Code and datasets associated with this tutorial are available at https://github.com/katrinajones/qpal
 
+These can be installed with `devtools` using `install_github("katrinajones/qpal")`
+
 #Day 1 - Intro to Geometric Morphometrics in R
 
 ##Part 1: Introduction to Geomorph Package
@@ -228,7 +230,7 @@ shrewdf<-geomorph.data.frame(shrewdf, scores=pca.lands$pc.scores)
 
 Now lets try an interactive 3D plot
 
-```{r testgl, webgl=TRUE}
+```{r testgl,fig.height=6, fig.width=6, webgl=TRUE}
 plot3d(shrewdf$scores[,1:3])#interactive 3D plots
 text3d(shrewdf$scores[,1:3],texts=rownames(shrewdf$scores),pos=4,cex=.5)
 ```
