@@ -18,11 +18,14 @@ NULL
 #'
 NULL
 
-#' Tarsals
+#' Tarsalsdf
 #'
-#' A dataset containing xxxxx
+#' Geomorph dataframe containing 2D and 3D landmarks for carnivoran tarsals and
+#' associated ecological data
 #'
-#' @name tarsals
+#' From Polly XXX [cite]
+#'
+#' @name tarsalsdf
 #' @docType data
 #' @format csv file
 #'

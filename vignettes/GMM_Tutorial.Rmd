@@ -26,7 +26,7 @@ This tutorial includes code and excersizes used in the 2018 Analytical Paleobiol
 
 Code and datasets associated with this tutorial are available at https://github.com/katrinajones/qpal
 
-These can be installed with `devtools` using `install_github("katrinajones/qpal")`
+These can be installed with `devtools` using `install_github("katrinajones/qpal", build_vignette=T)`
 
 #Day 1 - Intro to Geometric Morphometrics in R
 
@@ -168,17 +168,27 @@ Now add the curve sliders
  #With Sliding semi-landmarks
 curves<-teeth$curves.scaled
 
-#resample curves to 3 sliders
+#resample curves to 5 fixed landmarks
+nfixed<-5
+totfixed<-nfixed+2
 curvelands<-list()
-curvelands<-lapply(curves, function (x) lapply(x, pointsAtEvenSpacing, n=5))#Resample
+curvelands<-lapply(curves, function (x) lapply(x, pointsAtEvenSpacing, n=totfixed))#Resample
 curvelands<-lapply(curvelands, do.call, what=rbind)#merge
-curvelands<-array(unlist(curvelands), dim=c(10,2,5))#convert to array
-curvelands<-curvelands[c(2:4,7:9),,]#remove fixed points
-rownames(curvelands)<-rep(c("cu1", "cu2"), each=3) #label
+curvelands<-array(unlist(curvelands), dim=c((2*totfixed),2,5))#convert to array
+curvelands<-curvelands[-c(1,totfixed, (totfixed+1),(2*totfixed)),,]#remove fixed points
+rownames(curvelands)<-rep(c("cu1", "cu2"), each=nfixed) #label
 lands<-abind::abind(fixed, curvelands, along=1) #join with fixed
 ```
  
-Need to make a 'sliders' file to tell geomorph which ones to slide during the procrustes fit. Here I'm using custom code which makes the sliders file based on the curve labels
+We can write to TPS format for use in other software, or read in files created elsewhere in that format
+
+```{r, eval=FALSE}
+#Read and write TPS file for use in other software
+writeland.tps(lands, "shrewtest.tps")
+readland.tps("shrewtest.tps", specID=("ID"))
+```
+
+Now we need to make a 'sliders' file to tell geomorph which landmarks to slide during the procrustes fit. Here I'm using custom code which makes the sliders file based on the curve labels
 
 ```{r, results='hide'}
 #make sliders file
@@ -188,8 +198,10 @@ sliders<-makesliders(rownames(lands),id=c("cu1", "cu2"), begin=c(1,1),
 #Procrustes fit
 gpa.lands <- gpagen(lands, curves=sliders)
 ```
-```{r}
+```{r, fig.show='hold'}
+plot(gpa.lands$consensus, col=palette()[as.factor(rownames(lands))], pch=19)
 plot(gpa.lands)
+plotRefToTarget(gpa.lands$coords[,,1], gpa.lands$consensus)
 ```
 
 Now we'll try with a much bigger dataset, based on [insert citation]
@@ -249,9 +261,11 @@ points(centroid[1],centroid[2],col="Red", cex=2)
 plotRefToTarget(consensus,shrewdf$coords[,,1])
 ```
 
+##Practical - GMM analsysis of faces
+
 Now try it out yourself! Take some photos of your friends faces, ideally from different angles, and try running your own morphometric analysis. Do different faces group separately? Or does error associated with photo angle swamp out the signal?
 
-#Day 2 - By-hand GMM analysis and statistical framework
+#Day 2 - GMM analysis in detail
 
 ##Procrustes superimposition
 
@@ -370,4 +384,259 @@ plot(scores[,1:2])
 ```
 
 ##Statistical analysis of GMM data
+
+###Regression analysis
+
+We will use the plethodon example dataset from above to try out some data analysis in geomorph, using the geomorph dataframe 'plethgdf'.
+
+```{r, results='hide'}
+##example with plethodon dataset
+pc.scores<-plotTangentSpace(plethgdf$coords, warpgrids=F)
+plethgdf<-geomorph.data.frame(plethgdf, pcscores=pc.scores$pc.scores)
+```
+
+We can run the analysis univariately using PC1, however this is not a good idea because it ignores much of the variation. Here we show an example, just to illustrate univariate regression in r 
+
+```{r, fig.show='hold'}
+#Univariate regression against PC1
+#Not including all the variation - shouldn't do this!
+plot(log(plethgdf$size),plethgdf$pcscores[,1])
+w <- lm(plethgdf$pcscores[,1]~ log(plethgdf$size))
+w # gives only coefficients & formula
+summary(w) # gives much more info: stats, P, etc.
+abline(w) # adds regression line to plot
+```
+
+However, it is much better to run the analysis multivariately, taking into account all variation. Geomorph has many tools for the multivariate analysis of shape, which run directly on the Procrustes Coordinates. Further, statistical tests within the package are designed to accomodate high dimensional data. For more information see `?ProcD.lm`
+
+```{r}
+#Multivariate in geomorph - correct way!
+pleth.lm<-procD.lm(coords~log(size), data=plethgdf, print.progress = F)
+pleth.lm
+```
+
+If you are interested in the relationship between size and shape, there is also a built in function for allometric analysis. Though testing is essential the same as `ProcD.lm`, it includes additional tools for visualizing size-related shape.
+
+```{r, fig.show='hold', fig.height=5, fig.width=5}
+#Special function for examining allometry specifically
+pleth.allom<-procD.allometry(coords~size,logsz=T,data=plethgdf, print.progress = F)
+pleth.allom
+
+#Now also outputs allometric components with shape warps
+#Shape scores from regression of shape on size
+plot(pleth.allom, method="RegScore")
+
+#Predicted shapes based on size
+#PC1 of predicted values
+plot(pleth.allom, method="PredLine")
+```
+
+Further, it is possible to 'size-correct' your shape data, by removing the shape most associated with size. Remember, absolute size has already been removed during the Procrustes fit. Thus, this allometric component of shape reflects the remaining shape which is correlated with size. You need to think about if you want to remove this or not!
+
+```{r}
+#Can get size-corrected residuals
+plethAnova <- procD.lm(pleth.allom$formula,
+                       data = pleth.allom$data, print.progress = F)
+shape.resid <- arrayspecs(plethAnova$residuals,
+                          p=dim(plethgdf$coords)[1], k=dim(plethgdf$coords)[2]) # allometry-adjusted residuals
+adj.shape <- shape.resid + array(mshape(plethgdf$coords), dim(shape.resid)) # 
+```
+
+We can also take into account different groups when considering allometry
+
+```{r, fig.height=5, fig.width=5}
+##Add groups - MANCOVA
+pleth.allom<-procD.allometry(coords~size,f2=~species,logsz=T,data=plethgdf, print.progress = F)
+
+plot(pleth.allom, method="PredLine")
+```
+
+We can also visualize shape variation associated with size
+
+```{r}
+#Compare min and max size associated shapes
+plotRefToTarget(pleth.allom$Ahat.at.min, pleth.allom$Ahat.at.max, mag=5)
+```
+
+###MANOVA
+
+We can also use `ProcD.lm` to examine the relationship of shape with categorical variables
+
+```{r, fig.show='hold', warning=F}
+#ANOVA
+pleth.anova<-procD.lm(coords~species, data=plethgdf, print.progress = F)
+pleth.anova$aov.table
+pleth.anova<-procD.lm(coords~species+site, data=plethgdf,print.progress = F)
+pleth.anova$aov.table
+pleth.anova<-procD.lm(coords~species*site, data=plethgdf, print.progress = F)
+pleth.anova$aov.table
+
+# diagnostic plots, including plotOutliers
+plot(pleth.anova, type = "diagnostics", outliers = TRUE)
+# PC plot rotated to major axis of fitted values
+plot(pleth.anova, type = "PC", pch = 19, col = "blue")
+```
+
+To run posthoc tests between groups, or explicitly test the fit of two nested models, `advanced.ProcD.lm` can be used.
+
+```{r}
+#Post-hoc comparisons
+pleth.posthoc<-advanced.procD.lm(coords~species,f2=~1, groups=~species,
+                                 data=plethgdf, print.progress = F)
+pleth.posthoc
+
+#group and covariate
+pleth.posthoc<-advanced.procD.lm(coords~species*log(size),f2=~1, groups=~species*site, slopes= ~log(size), data=plethgdf, print.progress = F)
+pleth.posthoc$anova.table
+
+#Compare with or without interaction term
+pleth.posthoc<-advanced.procD.lm(coords~species*site,f2=~species+site, groups=~species*site, data=plethgdf, print.progress = F)
+pleth.posthoc$anova.table
+```
+
+##Practical - Analysis of Carnivoran Tarsals (2D)
+
+Now try for yourself, using an example dataset of photos of Carnivoran tarsals from XXXX [cite], in the folder `2Dtarsals`. Locate this directory using `system.file("extdata", package="qpal")`. Associated data are located in `Tarsalsdata.csv`. To analyze example landmarks, there is a ready-made geomorph dataframe which can be accessed using `data("tarsalsdf")`.
+
+#Day 3 - GMM on Trees
+
+First we will upload a phylogenetic tree to match our tarsals dataset. This is a time callibrated phylogeny generated by `timetree.org`.
+
+```{r, fig.height=5, fig.width=5}
+#Use 2D tarsal data from yesterday
+data("tarsalsdf")
+
+#Read tree - created from timetree.org
+require(phytools)
+tree<-read.newick("tarsaltree.nwk")
+par(mar=c(1,1,1,1))
+plot(tree)
+```
+
+##Simulating GMM data on a tree
+
+We will use the package `mvMORPH` to simulate evolution of multivariate traits on a tree. Since morphometric traits (Procrustes coordinates) strongly covary, we expect the rate of evolution of each coordinate to be related. `mvMorph` allows us to use a rate matrix, which can take into account covariation between traits in their evolutionary patterns.
+
+First, let's assume random rates accross all traits, and theta equivalent to the mean shape.
+
+```{r, results='hide', warning=F}
+##Simulating morphological evolution on a tree
+require(mvMORPH, quietly=T)
+ntraits<-34#2*no of landmarks
+dimnames(tarsalsdf$coords)[[3]]<-gsub(" ", "_", tarsalsdf$species)
+simdat<-two.d.array(tarsalsdf$coords)[,1:ntraits]
+
+
+#simulate without prior rate info
+sigmamat<-matrix(rnorm(ntraits*ntraits),ntraits)#random rates
+theta<-colMeans(simdat)#mean values
+sim.null<-mvMORPH::mvSIM(tree, nsim=4, model=c("BM1"),
+                     param=list(ntraits=ntraits, sigma=sigmamat, theta=theta))
+```
+```{r, fig.height=5, fig.width=5}
+#Look at data
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+for(i in 1:4){
+plotTangentSpace(arrayspecs(sim.null[[i]], (ntraits/2), 2),
+                 label = tarsalsdf$common, groups = tarsalsdf$family, warpgrids=F)
+}
+```
+
+Now lets specify more realistic parameters for the rate matrix, by calculating it from the real data. To do this we need to reduce the number of landmarks, since the sample is so small.
+
+```{r, results='hide'}
+#Base simulation on real rates/covariance between vars
+# must have fewer vars than species
+ntraits<-12
+simdat<-two.d.array(tarsalsdf$coords)[,1:ntraits]
+rownames(simdat)<-gsub(" ", "_", tarsalsdf$species)
+bm<-mvBM(tree, data=simdat,model=c("BM1"))#calculate rate covariance
+sim<-simulate(bm,tree=tree, 4)
+```
+```{r, fig.height=5, fig.width=5}
+
+#Look at data
+par(mfrow=c(2,2))
+par(mar=c(2,2,2,2))
+for(i in 1:4){
+  plotTangentSpace(arrayspecs(sim[[i]], (ntraits/2), 2),
+      label = tarsalsdf$common, groups =tarsalsdf$family,warpgrids=F)
+}
+
+```
+
+##Visualizing evolution on trees
+
+```{r, fig.height=5, fig.width=5}
+
+#Plot a phylomorphospace
+phy.tar<-plotGMPhyloMorphoSpace(tree, tarsalsdf$coords, tip.labels = F, ancStates = T, plot.param = list(t.bg=palette()[tarsalsdf$family]))
+
+```
+
+Geomorph will also calculate the ancestral state shapes at the nodes
+
+```{r, fig.show='hold'}
+#Now we can also visualize ancestral states
+anc.st<-arrayspecs(phy.tar, 17, 2)
+plot(anc.st[,,1])
+#Evolution along branch
+plotRefToTarget(anc.st[,,1],anc.st[,,2], mag=3)
+```
+
+You can also use `phytools` to make a 3D phylomorphospace
+
+```{r results='hide'}
+a<-plotTangentSpace(tarsalsdf$coords,warpgrids = F,axis1=1,axis2=2, verbose=F)
+```
+```{r phyrgl,fig.height=5, fig.width=5, webgl=TRUE}
+open3d()
+plotdat<-a$pc.scores[,1:3]
+colnames(plotdat)<-c("","","")#prevent axis labels
+obj<-phytools::phylomorphospace3d(tree,plotdat, method="dynamic",
+                                  control=list(ftype="off",spin=F, box=F), cex.symbol=0.5)
+
+##Color by groups
+spheres3d(a$pc.scores[,1:3], color=palette()[tarsalsdf$family], r=0.01)
+bbox3d(color = c("white"),shininess=15, alpha=0.3,xat=c(10), xlab="",yat=c(10), ylab="",zat=c(10), zlab="")
+text3d((a$pc.scores[,1:3]+0.02), texts = substr(tarsalsdf$species,1,3))
+```
+
+##Phylogenetic analyses
+
+```{r, fig.show='hold'}
+#Test for phylogenetic signal
+physignal(tarsalsdf$coords, tree, print.progress = F)
+
+##Phylogenetic generalized least squares
+#stance
+pgls.tar<-procD.pgls(coords~stance, phy=tree, data=tarsalsdf, print.progress = F)
+pgls.tar$aov.table
+
+#size and stance with interaction
+pgls.tar<-procD.pgls(coords~log(mass)*stance, phy=tree, data=tarsalsdf,print.progress = F)
+pgls.tar$aov.table
+
+#Compare rates of evolution between families
+names(tarsalsdf$family)<-gsub(" ", "_", tarsalsdf$species)
+rate.comp<-compare.evol.rates(tarsalsdf$coords, tree, gp=tarsalsdf$family, print.progress = F)
+
+plot(rate.comp)
+rate.comp$sigma.d.gp
+rate.comp$pairwise.pvalue
+```
+
+##Visualizing 3D data in R
+
+Geomorph offers great tools for visualizing shape change in 3D. Using a surface ply file (located in `/Tarsals/plys`), we can warp the surface shape to our procrustes consensus shape. From there, we can use this surface to visualize shape variation
+
+[Insert example with new landmarks]
+
+##Practical - Analysis of 3D Tarsals
+
+How can our estimates of shape change if we use 3D instead of 2D data? Now repeat your non-phylogenetic and phylogenetic analyses on a 3D dataset contained within the `tarsalsdf` dataframe. Access it using `tarsalsdf$lands3d`.
+
+
+
 
