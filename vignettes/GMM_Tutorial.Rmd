@@ -496,7 +496,7 @@ pleth.posthoc$anova.table
 
 ##Practical - Analysis of Carnivoran Tarsals (2D)
 
-Now try for yourself, using an example dataset of photos of Carnivoran tarsals from XXXX [cite], in the folder `2Dtarsals`. Locate this directory using `system.file("extdata", package="qpal")`. Associated data are located in `Tarsalsdata.csv`. To analyze example landmarks, there is a ready-made geomorph dataframe which can be accessed using `data("tarsalsdf")`.
+Now try for yourself, using an example dataset of photos of Carnivoran tarsals, in the folder `2Dtarsals`. Locate this directory using `system.file("extdata", package="qpal")`. Associated data are located in `Tarsalsdata.csv`. To analyze example landmarks, there is a ready-made geomorph dataframe which can be accessed using `data("tarsalsdf")`.
 
 ##Visualizing 3D data in R
 
