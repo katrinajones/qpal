@@ -10,5 +10,8 @@ Geomorph dataframe containing 2D and 3D landmarks for carnivoran tarsals and
 associated ecological data
 }
 \details{
-From Polly XXX [cite]
+Associated photos can be found in 'extdata/2Dtarsals', 3D models can be found in 'extdata/Tarsals/plys'
+}
+\references{
+Polly, P. D., J. Fuentes-Gonzales, A. M. Lawing, A. K. Bormet, and R. G. Dundas.  2017.  Clade sorting has a greater effect than local adaptation on ecometric patterns in Carnivora.  Evolutionary Ecology Research, 18: 61-95
 }

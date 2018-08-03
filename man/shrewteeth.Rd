@@ -6,5 +6,11 @@
 \title{Shrewteeth}
 \format{TPS file}
 \description{
-A dataset containing xxxxx
+A dataset containing dental 2D landmarks from photographs of European shrews
+}
+\details{
+Associated photos can be found in 'extdata/ShrewsAndMarmots'
+}
+\references{
+Polly, P. D. 2003. Paleophylogeography of Sorex araneus: molar shape as a morphological marker for fossil shrews. Mammalia, 68: 233-243
 }
