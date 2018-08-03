@@ -15,4 +15,6 @@ VignetteBuilder: knitr
 Imports: geomorph,
     StereoMorph,
     rmarkdown,
-    abind
+    abind,
+    mvMORPH,
+    phytools
