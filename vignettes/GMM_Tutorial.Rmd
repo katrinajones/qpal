@@ -1,11 +1,11 @@
 ---
-title: "GMM Tutorial"
+title: "GMM_Tutorial"
 author: "Katrina Jones & David Polly"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
   %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{GMM_Tutorial}
   %\VignetteEncoding{UTF-8}
 ---
 
@@ -151,9 +151,12 @@ Read in the data
 ```{r, results='hide'}
 
 #Look at data based on fixed landmarks only
-teeth<-readShapes('teeth')
-fixed<-teeth$landmarks.scaled
+teeth<-StereoMorph::readShapes('teeth')
 
+```
+```{r}
+
+fixed<-teeth$landmarks.scaled
 #Procrustes fit
 gpa.lands <- gpagen(fixed)
 ```
