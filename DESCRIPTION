@@ -17,4 +17,5 @@ Imports: geomorph,
     rmarkdown,
     abind,
     mvMORPH,
-    phytools
+    phytools,
+    rgl

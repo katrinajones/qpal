@@ -22,15 +22,129 @@ knitr::opts_chunk$set(fig.width=3, fig.height=3)
 ```
 
 
-This tutorial includes code and excersizes used in the 2018 Analytical Paleobiology Course, hosted at University of Florida. Lecture slide pdfs including theoretical content are provided at XXX
+This tutorial includes code and excersizes used in the 2018 Analytical Paleobiology Course, hosted at University of Florida.
 
 Code and datasets associated with this tutorial are available at https://github.com/katrinajones/qpal
 
 These can be installed with `devtools` using `install_github("katrinajones/qpal", build_vignette=T)`
 
-#Day 1 - Intro to Geometric Morphometrics in R
+#Introduction to Geometric Morphometrics
 
-##Part 1: Introduction to Geomorph Package
+Geometric morphometrics (GMM) is the quantitative representation and analysis of morphological shape using geometric coordinates instead of measurements.
+
+The goal of morphometrics is to measure morphological similarity and difference. Key features of GMM are:
+
+* Shape is represented by landmarks
+* Variables are cartesian coordinates
+* must be registered with procrustes analysis
+* coordinate system has no objective scale - size not included
+* results can be visualized as pictures
+* there are several variants on the 'standard' analysis e.g., EDMA
+
+Steps in a GMM analysis are:
+
+* Collect landmark data
+* Do a Procrustes superimposition
+* Analyze similarity and difference of shape
+
+###Collecting landmarks
+
+1. Each shape mist have the same number of landmarks
+2. The landmarks on all shapes must be in the same order
+3. Landmarks are ordinarily placed on homologous points, points that can be replicated from object to object based on common morphology, common function, or common geometry.
+
+###Procrustes superimposition
+
+Procrustes superimposition is the 'standardization' step in GMM. Procrustes removes size, translation, and rotation. In orther words, it centers the shapes on the same point, scales them to the same size, and rotates them into the same orientation. These manipulations remove statistical degrees of freedom, which has implications for later statistical analyses. After landmarks have been superimposed, the similarities and differences in their shape can be analyzed.
+
+Other names for procrustes superimposition include: Procrustes analysis, procrustes fitting, generalized procrustes analysis (GPA), generalized least squares (GLS), least squares fitting. The analysis centers the shape on the origin, scales all shape to unite size, and minimizes least squares distance by rotation.
+
+###Principal components analysis (PCA)
+
+PCA ordinates the objects by arranging them in a shape space. Similarities and differences can be easily seen in a PCA plot.
+
+The axes of a PCA plot are principal components (PCs). The first PC is, by definition, the line that spans the largest axis of variation in shape. The second spans the next largest axis of variation at right angles to the first, the third spans the third largest axis of variation, and so on.
+
+The PCA plot is a morphospace:
+
+* each point represents a unique shape
+* a shape model can be constructed for every point
+* shape forms a continuous gradient through the PC space
+* Each PC axis describes a different component of shape
+* Real shapes are found where their landmarks correspond to the shape space
+* Coordinates of the shapes are scores
+* Each exis is orthogonal or uncorrelates
+* Each axis accounts for a descending proportion of the total shape variance
+* Positive/negative directions of PC axes are entirely arbitrary
+* Axes are scaled in Procrustes units (meaningless except within-study)
+
+Morphospace is always centered on the average shape, or consensus shape.
+
+Why is PCA a standard step?
+
+* Rotates data to its major axes for better visualization
+* Preserves original distances between points, in other words it does not distort the variation in the data, but only if the covariance matrix is used (standard in GMM)
+* Removed correlations between landmark coordinates and adjusts to proper degrees of freedom to simplify statistical analyses.
+
+###Visualization
+
+Thin plate splines are a visualization tool which involves deforming a uniform grid to show a difference between two objects.
+
+Lollipops show vector from each landmark in one shape to another, to visualize shape changes.
+
+###Definitions
+
+*Landmarks*: ant point described by cartesian coordinates, used to represent the shape of a structure.
+
+*Landmarks (2)*: any point that can be places on a biologically or geometrically homologous point on the structure.
+
+*Semi-landmark*: a point that is placed arbitrarily using an algorithm, often by defining endpoints at biologically homologous points and placing a specified number of semilandmarks between them.
+
+*Sliding semi-landmarks*: semilandmarks points whose positions are algorithmically adjusted to minimize either the Procrustes distance or 'bending energy'. However, placement is sample dependent.
+
+*Surfaces*: semilandmark representatikon of the 3D surface of an object. Semilandmarks are quantified as cartesian coordinates. Either ordinary (object-dependent) or sliding (sample dependent) semilandmarks.
+
+*Consensus shape*: the mean of the procrustes coordinates, landmark by landmark
+
+*Centroid*: the geometric center of the object (the average of all of the x/y/z)
+
+*Procrustes distance*: the sum of all the distances betweent the corresponding landmarks of two shapes. The main measure of shape difference.
+
+*Centroid size*: Sum of distances from landmarks to centroid, measure of overall size.
+
+###Advantages of GMM
+
+1. Results can be visually represented as shapes
+2. Data are easily collected from digital photographs
+3. Size is mathematically removed from the analysis to focus on pure shape
+
+###Disadvantages of GMM
+
+1. Size is absent from analysis, and size may be biologically relevant
+2. Only single rigid structures can be easily analyzed
+3. GMM cannot measure variation in a single landmark. Procrustes distributes variation by least-squares to minimize differences between whole shapes. Variation at an individual landmark cannot be interpreted as biological variation. Use EDMA instead.
+
+###How do you choose landmarks?
+
+1. Data must reflect a hypothesis
+2. Data must represent the shape adequately
+3. Landmarks must be present on all specimens
+4. Measurement error always exists in any collection of data, but ME doesn't matter if its substantially less than the differences you want to measure.
+5. Sample size required for a particular study depends on the within-group variation relative to differences between groups.
+
+###How many specimens do I need?
+
+* Depends on the question!
+* Depends on the error in the data
+* You need more specimens when the differences you want to measure are small compared to the variation within your group
+
+###What morphometrics can NOT tell you
+
+1. Morphometrics does not tell you what 'large' or 'difference' or 'shape' mean.
+2. Morphometrics does not tell you wether you unwittingly have two unrecognizes groups in a single sample
+3. How to identify cladistic characters.
+
+##Introduction to Geomorph Package
 
 Geomorph provides a flexible tool for analyzing geometric morphometric data. For more information see `?(geomorph)`.
 
@@ -48,6 +162,8 @@ data("plethodon") #Load data into environment
 summary(plethodon)
 
 ```
+
+The 'wide' data format (n*(p*k)) for data is most common outside GMM packages, however, within GMM packages the long format (p*k*n, 3D array) is most commonly used.
 
 Converting between wide and long data formats:
 
@@ -121,11 +237,12 @@ plotRefToTarget(shape1, shape2, method=c("vector"), mag=10)
 plotRefToTarget(shape1, shape2, method=c("points"), mag=10)
 ```
 
-##Part 2: Step-by-step morphometric analysis
+#Overview: Your first GMM analysis
+##Step-by-step morphometric analysis
 
 This section provides a quick overview of the steps of a GMM analysis in R, which will be followed by a practical in which you will collect and run your own data.
 
-The R package Stereomorph provides a nice interface for collecting landmarks and curves in 2D. You must have either Chrome or Safari installed for this to work.
+The R package Stereomorph provides a nice interface for collecting landmarks and curves in 2D. You must have either Chrome or Safari installed for this to work. For more guidence on collecting landmarks in Stereomorph see https://aaronolsen.github.io/software/stereomorph/StereoMorph%202D%20Tutorial.pdf
 
 ```{r, results='hide'}
 library(StereoMorph)
@@ -154,7 +271,7 @@ Read in the data
 teeth<-StereoMorph::readShapes('teeth')
 
 ```
-```{r}
+```{r, results='hide'}
 
 fixed<-teeth$landmarks.scaled
 #Procrustes fit
@@ -178,6 +295,8 @@ curvelands<-list()
 curvelands<-lapply(curves, function (x) lapply(x, pointsAtEvenSpacing, n=totfixed))#Resample
 curvelands<-lapply(curvelands, do.call, what=rbind)#merge
 curvelands<-array(unlist(curvelands), dim=c((2*totfixed),2,5))#convert to array
+
+#The first and last points are the original fixed landmarks, so can be dropped
 curvelands<-curvelands[-c(1,totfixed, (totfixed+1),(2*totfixed)),,]#remove fixed points
 rownames(curvelands)<-rep(c("cu1", "cu2"), each=nfixed) #label
 lands<-abind::abind(fixed, curvelands, along=1) #join with fixed
@@ -191,12 +310,11 @@ writeland.tps(lands, "shrewtest.tps")
 readland.tps("shrewtest.tps", specID=("ID"))
 ```
 
-Now we need to make a 'sliders' file to tell geomorph which landmarks to slide during the procrustes fit. Here I'm using custom code which makes the sliders file based on the curve labels
+Now we need to make a 'sliders' file to tell geomorph which landmarks to slide during the procrustes fit. Here I'm using custom code `makesliders` which makes the sliders file based on the curve labels
 
 ```{r, results='hide'}
 #make sliders file
-sliders<-makesliders(rownames(lands),id=c("cu1", "cu2"), begin=c(1,1),
-                     end=c(3,2))
+sliders<-makesliders(rownames(lands),id=c("cu1", "cu2"), begin=c(1,1),end=c(3,2))
 
 #Procrustes fit
 gpa.lands <- gpagen(lands, curves=sliders)
@@ -207,7 +325,7 @@ plot(gpa.lands)
 plotRefToTarget(gpa.lands$coords[,,1], gpa.lands$consensus)
 ```
 
-Now we'll try with a much bigger dataset, based on [insert citation]
+Now we'll try with a much bigger dataset, see `?shrewteeth`
 
 ```{r}
 ##Now lets try with a big dataset of shrewteeth!
@@ -268,13 +386,21 @@ plotRefToTarget(consensus,shrewdf$coords[,,1])
 
 Now try it out yourself! Take some photos of your friends faces, ideally from different angles, and try running your own morphometric analysis. Do different faces group separately? Or does error associated with photo angle swamp out the signal?
 
-#Day 2 - GMM analysis in detail
+#Getting into the weeds: GMM analysis in detail
 
 ##Procrustes superimposition
+
+Procrustes superimposition translates, scales and rotates ladmarks to a common coordinate system. This removes degrees of freedom as follows:
+
+`2 + 1 + 1 = 4` for 2D data
+`3 + 1 + 1 = 7` for 3D data
+
+This creates several statistical challenges: colinearity, 'singular' covariance matrix, and 'curved' shape space, which can be dealt with later in the PCA step.
 
 Calculating Procrustes distances by hand
 
 ```{r}
+#Distances in shape space
 #Calculate distance
 A<-shrewdf$raw[,,1]
 B<-shrewdf$raw[,,2]
@@ -303,7 +429,7 @@ plot(shape, xlim=c(-800,800), ylim=c(-800,800))
 points(t(centroid), col="red", pch=19)
 ```
 
-Run through the steps of a Procrustes Superimposition: Translation, scaling, rotation
+The following code allows you to run through the steps of a Procrustes Superimposition: Translation, scaling, rotation
 
 Translation
 
@@ -340,7 +466,7 @@ points(resizedshape%*%rotmat, pch=19,col="Blue")
 
 ##Principal Components Analysis
 
-Three methods for calculating total variance which should always give the same results
+One way to check your calculations is to compare three methods for calculating total variance which should always give the same results
 
 ```{r}
 nspec<-dim(shrewdf$raw)[3]
@@ -350,7 +476,7 @@ sum(pca.lands$sdev^2)
 sum(pca.lands$pc.scores^2)/(nspec-1)
 ```
 
-PCA Calculation
+The following code runs through the steps of the PCA calculation
 
 ```{r}
 #convert procrustes coordinates to wide format for use outside geomorph
@@ -379,16 +505,105 @@ sum(pca.stuff$d) # total variance of singular values
 sum(apply(scores, 2, var)) # total variance of scores
 ```
 
-Compare plots
+All looks good!
+
+Compare plots to those generated by PCA using geomorph.
 
 ```{r, fig.show='hold'}
 pca<-plotTangentSpace(shrewdf$coords, warpgrids=F)
 plot(scores[,1:2])
 ```
 
-##Statistical analysis of GMM data
+##Generating shapes from morphospaces
 
+PCA is nothing more than a rigid rotation of the data, meaning we can translate between PCA scores and real shape. Eigenvectors are the angles between PC and original variables, making them in effect a rotation matrix. Therefore, we can translate between original data and PC scores by multiplying by the eigenvector rotation matrix.
+
+```{r}
+###Translate PC Scores into original shapes
+pcscores<-pca$pc.scores
+eigenvectors<-pca$rotation
+consensus<-mshape(shrewdf$coords)
+
+#First lets calculate the consensus shape
+scores<-c(0,0,0,0,0,0,0,0,0,0,0,0,0,0)#PC scores of consensus shape
+shape<-scores*eigenvectors
+shape<-matrix(shape,nrow=9, ncol=2, byrow=T)#must do by row
+#Shape object will be zero for middle of morphospace
+shape
+
+#Add consensus shape
+shape<-shape+consensus
+shape
+#compare
+mshape(shrewdf$coords)
+```
+
+We can use this same idea to calculate the shape at any position in morphospace, for example 0.5 on PC1 and 0.5 on PC2.
+
+```{r}
+scores<-c(0.5,0.5,0,0,0,0,0,0,0,0,0,0,0,0)#PC scores of consensus shape
+shape<-scores*eigenvectors
+shape<-matrix(shape,nrow=9, ncol=2, byrow=T)#must do by row
+
+#Add consensus shape
+shape<-shape+consensus
+plotRefToTarget(consensus, shape)
+```
+
+#Statistical analysis of GMM data
+
+###Ordination methods
+
+PCA in GMM is (almost) always based on a covariance matrix. Correlation is similar to covariance but standardized by the spread (variance) of the data. Therefore, if a correlation matrix for PCA is used, the distribution of landmarks in space will be distorted.
+
+PCA:
+
+*  shows variation in its natural scale
+*  used to show multivariate difference on small number of axes
+*  arranges data by major axes based on measured variables
+*  used in GMM to produce shape variables
+*  Axes are alinged along the major axes of variance
+*  distances in PCA space = procrustes distances
+ 
+ Canonical Variates Analysis (CVA), (aka Discriminant Function Analysis (DFA)):
+ 
+*  Used to identify differences between known groups
+*  discriminant functions are used to assign unknown objects to one of the groups
+*  can be combined with cross-validation experiments to produce stats on how well the varibales are able to classify objects
+*  axes are aligned to group means
+*  distances in CVA space = Mahalonobis distances (standardsized distance)
+*  having too many variables (PCs) may cause CVA to overestimate differences between groups, so may be best to only include a few PCs.
+ 
+ Principal Coordinates Analysis (PCO) (==MDS):
+ 
+*  arranges data by major axes based on distance measures
+*  not normally used with GMM because quantitative variables are always available
+*  PCO on euclidean distances = PCA on variables
+ 
+ Non-metric Multidimensional Scaling (NMDS):
+ 
+*  Arranges data so the distances on 2d plot are as similar as possible to original multivariate distances
+*  Does NOT preserve between-oject distances
+*  for visualization only, DO NOT analyze.
+*  PCO is sometimes referred to as multidimensional scaling, even though it is a totally separate approach
+  
+Between-groups PCA (BG-PCA):
+
+*  Projection of all data into a PCA based on group means
+*  Increasingly popular, but dubious
+*  In GMM can produce highly misleading plots in which overlapping groups appear distinct
+*  BG-PCA does not have the properties of ordinary PCA (most of the variance may be on the higher axes, axes will be correlated)
+*  CVA is preferred if the goal to identify group differences
+ 
 ###Regression analysis
+
+Regression measures the relationship between geometric shape and another continuous variables.
+
+Linear regression finds the line that best predicts Y (dependent) from X (independent), where a is the slope, b is the intercept and E is the residual error.
+
+`y=aX + b + E`
+
+In GMM, we will always be using multivariate regression because there are always multiple shape variables.
 
 We will use the plethodon example dataset from above to try out some data analysis in geomorph, using the geomorph dataframe 'plethgdf'.
 
@@ -463,6 +678,8 @@ plotRefToTarget(pleth.allom$Ahat.at.min, pleth.allom$Ahat.at.max, mag=5)
 
 ###MANOVA
 
+Assesses the relationship between geometric shape and a categorical predictor variable, with multiple response variables (shape).
+
 We can also use `ProcD.lm` to examine the relationship of shape with categorical variables
 
 ```{r, fig.show='hold', warning=F}
@@ -499,7 +716,7 @@ pleth.posthoc$anova.table
 
 ##Practical - Analysis of Carnivoran Tarsals (2D)
 
-Now try for yourself, using an example dataset of photos of Carnivoran tarsals, in the folder `2Dtarsals`. Locate this directory using `system.file("extdata", package="qpal")`. Associated data are located in `Tarsalsdata.csv`. To analyze example landmarks, there is a ready-made geomorph dataframe which can be accessed using `data("tarsalsdf")`.
+Now try for yourself, using an example dataset of photos of Carnivoran tarsals, in the folder `2Dtarsals`. Locate this directory using `system.file("extdata", package="qpal")`. Associated data are located in `Tarsalsdata.csv`. To analyze example landmarks, there is a ready-made geomorph dataframe which can be accessed using `data("tarsalsdf")`. What is the influence of size and stance on tarsal shape in carnivores?
 
 ##Visualizing 3D data in R
 
@@ -536,9 +753,73 @@ plotTangentSpace(tarsalsdf$coords3d, mesh=wmesh, label = tarsalsdf$common, group
 
 ##Analysis of 3D Tarsals
 
-How can our estimates of shape change if we use 3D instead of 2D data? Now repeat your non-phylogenetic and phylogenetic analyses on a 3D dataset contained within the `tarsalsdf` dataframe. Access it using `tarsalsdf$lands3d`.
+How can our estimates of shape change if we use 3D instead of 2D data? Access an example set of 3D landmarks using `tarsalsdf$lands3d`.
 
-#Day 3 - GMM on Trees
+#GMM on Trees
+
+##Phylogenetic comparative methods
+
+Modified statistical tests that take into account non-independence in data that come from different species.
+
+PCMs are applied to regression, MANOVA, and other standard tests, and they can be used to estimate rates of evolution and reconstruct ancestral traits on a phylogeny.
+
+PCMs estimate how much covariance a trait should have between taxa (and traits) is expected from the phylogenetic topology. The expected phylogenetic covariance is removed, leaving the residual between-trait covariance. Statistical tests are carried out on the residual component. PCMs based on a null model of evolution: Brownian motion i.e., purely random evolution.
+
+Brownian motion is equivalent to an unbiased random walk. Change at each step is random with respect to other steps. Change at each step has an equal chance of moving in a positive or negative direction. Typical implementation specifies steps as coming from a normal distribution with mean of zero and variance equal to the rate of evolution.
+
+In BM:
+
+* the probability of endpoints is a normal distribution
+* the most likely endpoint is the starting point
+* the standard deviation increases with the square root of time
+* the variance of the endpoints increases linearly with time
+* the variance of the endpoints equals average squared change per step (rate) times number of steps (time)
+* Because variance increases linearly with time, covariance between tips is linear with respect to shared branch time
+
+Phylogenetic covariance matrix (C) has diagonal equal to the total branch length between tip and base and off diagonals equal to the length of the shared branches. Actual expected variance and covariance is C multiplied by rate.
+
+Brownian motion makes a good statistical null because it is a purely random process. Outcomes of BM processes are statistically predictable. BM can occur in nature through genetic drift or selective drift (selection that changes randomly in direction and magnitude); therefore BM does NOT necessarily equate with 'neutral evolution'.
+
+###Measuring phylogenetic signal
+
+The phylogenetic component of data can only be assessed relative to some expectation e.g., BM.
+
+`Blombergs K (Kappa) = observed cov/expected cov`
+
+K can be thought of as the proportion of the covariance that is due to phylogeny. Usually ranges from 0 to 1, but can be greater than 1 if the phylogenetic covariances are stronger than under BM.
+
+`Pagels lambda = scaling factor so that tree fits BM model`
+
+Lambda can be thought of as how you would have to scale the branch lengths so that the data would be obtained under a BM model. Also usually ranges 0 to 1, where 0 is the equivalent to no phylogenetic structure and 1 is equal to actual phylogenetic structure. Can also be greater than 1 if phylogenetic covariances are stronger than under BM.
+
+###Ancestral state reconstruction
+
+If the likelihood of ancestor of one descendant is a normal distribution with variance proportional to time, then the likelihood of the common ancestor is the product of their probabilities. This is the maximum likleihood method for estimating phylogeny, and reconstructing ancestral phenotypes. This can be used to project a phylogenetic tree into a morphospace (phylomorphospace).
+
+###PCMs in GMM
+
+1. Phylogenetic least squares:
+ - Calculates C matrix to correct covriance structure in a least-squares regression
+  - Analogous to regressing out phylogenetic covariance as part of a trait-on-trait regression
+   - matches PIC under BM
+   
+2. Phylogenetic independent contrasts
+ - Flexible method in which data are transformed to change along non-overlapping segments of a tree
+ - analogous to 'first differencing' in time series
+ - contrasts are calculated for each trait of interest, then treated as phylogeny-free variables in ordinary statistical tests
+ 
+3. Phylogenetic MANOVA
+  - Essentially a MANOVA on independent contrasts for testing
+  
+4. Phylogenetic MANCOVA
+  - Extension of PGLS for assessing group differences holding a continuous covariate constants
+  
+Phylogenetic PCA:
+- pPCA is a PCA-like analysis based on the adjusted covariance matrix (by C matrix)
+- has undesirable properties: does NOT remove the effects of phylogeny
+- recommend not using this for GMM
+
+###Applying in R
 
 First we will upload a phylogenetic tree to match our tarsals dataset. This is a time callibrated phylogeny generated by `timetree.org`.
 
@@ -552,57 +833,6 @@ tree<-read.newick("tarsaltree.nwk")
 tree$tip.label<-gsub("_", " ", tree$tip.label)#make names match
 par(mar=c(1,1,1,1))
 plot(tree)
-```
-
-##Simulating GMM data on a tree
-
-We will use the package `mvMORPH` to simulate evolution of multivariate traits on a tree. Since morphometric traits (Procrustes coordinates) strongly covary, we expect the rate of evolution of each coordinate to be related. `mvMorph` allows us to use a rate matrix, which can take into account covariation between traits in their evolutionary patterns.
-
-First, let's assume random rates accross all traits, and theta equivalent to the mean shape.
-
-```{r, results='hide', warning=F}
-##Simulating morphological evolution on a tree
-require(mvMORPH, quietly=T)
-ntraits<-34#2*no of landmarks
-simdat<-two.d.array(tarsalsdf$coords)[,1:ntraits]
-
-
-#simulate without prior rate info
-sigmamat<-matrix(rnorm(ntraits*ntraits),ntraits)#random rates
-theta<-colMeans(simdat)#mean values
-sim.null<-mvMORPH::mvSIM(tree, nsim=4, model=c("BM1"),
-                     param=list(ntraits=ntraits, sigma=sigmamat, theta=theta))
-```
-```{r, fig.height=5, fig.width=5}
-#Look at data
-par(mfrow=c(2,2))
-par(mar=c(2,2,2,2))
-for(i in 1:4){
-plotTangentSpace(arrayspecs(sim.null[[i]], (ntraits/2), 2),
-                 label = tarsalsdf$common, groups = tarsalsdf$family, warpgrids=F)
-}
-```
-
-Now lets specify more realistic parameters for the rate matrix, by calculating it from the real data. To do this we need to reduce the number of landmarks, since the sample is so small.
-
-```{r, results='hide'}
-#Base simulation on real rates/covariance between vars
-# must have fewer vars than species
-ntraits<-12
-simdat<-two.d.array(tarsalsdf$coords)[,1:ntraits]
-bm<-mvBM(tree, data=simdat,model=c("BM1"))#calculate rate covariance
-sim<-simulate(bm,tree=tree, 4)
-```
-```{r, fig.height=5, fig.width=5}
-
-#Look at data
-par(mfrow=c(2,2))
-par(mar=c(2,2,2,2))
-for(i in 1:4){
-  plotTangentSpace(arrayspecs(sim[[i]], (ntraits/2), 2),
-      label = tarsalsdf$common, groups =tarsalsdf$family,warpgrids=F)
-}
-
 ```
 
 ##Visualizing evolution on trees
@@ -634,7 +864,7 @@ open3d()
 plotdat<-a$pc.scores[,1:3]
 colnames(plotdat)<-c("","","")#prevent axis labels
 obj<-phytools::phylomorphospace3d(tree,plotdat, method="dynamic",
-                                  control=list(ftype="off",spin=F, box=F), cex.symbol=0.5)
+                                  control=list(ftype="off",spin=FALSE, box=FALSE), cex.symbol=0.5)
 
 ##Color by groups
 spheres3d(a$pc.scores[,1:3], color=palette()[tarsalsdf$family], r=0.01)
@@ -644,10 +874,16 @@ text3d((a$pc.scores[,1:3]+0.02), texts = substr(tarsalsdf$species,1,3))
 
 ##Phylogenetic analyses
 
+Geomorph uses blombergs K to test for strength and significance of phylogenetic signal.
+
 ```{r, fig.show='hold'}
 #Test for phylogenetic signal
 physignal(tarsalsdf$coords, tree, print.progress = F)
+```
 
+Now lets try a PGLS analysis in geomorph.
+
+```{r, fig.show='hold'}
 ##Phylogenetic generalized least squares
 #stance
 pgls.tar<-procD.pgls(coords~stance, phy=tree, data=tarsalsdf, print.progress = F)
@@ -656,7 +892,11 @@ pgls.tar$aov.table
 #size and stance with interaction
 pgls.tar<-procD.pgls(coords~log(mass)*stance, phy=tree, data=tarsalsdf,print.progress = F)
 pgls.tar$aov.table
+```
 
+Finally, we can compare evolutionary rates in different portions of the tree based on brownian motion.
+
+```{r, fig.show='hold'}
 #Compare rates of evolution between families
 names(tarsalsdf$family)<-tarsalsdf$species
 rate.comp<-compare.evol.rates(tarsalsdf$coords, tree, gp=tarsalsdf$family, print.progress = F)
@@ -666,10 +906,16 @@ rate.comp$sigma.d.gp
 rate.comp$pairwise.pvalue
 ```
 
+##Practical - PCM on Tarsals dataset
 
-##Practical
+Now try applying some phylogenetic analyses to the tarsals dataset. How does phylogenetic correction change your results? How could you improve sampling to increase power in your analysis?
 
-Now try applying some phylogenetic analyses to the 3D tarsals dataset. How do the 2D and 3D results differ?
+#Take-home messages
 
+1. The selection of landmarks ultimately determines results patterns, so think about this step very carefully!
+2. Use all PCs in statistical tests (except CVA)
+3. Use covariance methods instead of correlation in PCA
+4. Always use non-parametric statistical tests where possible
+5. GMM analyzes the entire shape, not what happens at just one landmark
 
 
