@@ -1,8 +1,11 @@
 ---
-title: "GMM_Tutorial"
+title: "GMM Tutorial"
 author: "Katrina Jones & David Polly"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteIndexEntry{GMM_Tutorial}
@@ -29,6 +32,7 @@ Code and datasets associated with this tutorial are available at https://github.
 These can be installed with `devtools` using `install_github("katrinajones/qpal", build_vignette=T)`
 
 #Introduction to Geometric Morphometrics
+See Lecture one in accompanying PDFs.
 
 Geometric morphometrics (GMM) is the quantitative representation and analysis of morphological shape using geometric coordinates instead of measurements.
 
@@ -49,7 +53,7 @@ Steps in a GMM analysis are:
 
 ###Collecting landmarks
 
-1. Each shape mist have the same number of landmarks
+1. Each shape must have the same number of landmarks
 2. The landmarks on all shapes must be in the same order
 3. Landmarks are ordinarily placed on homologous points, points that can be replicated from object to object based on common morphology, common function, or common geometry.
 
@@ -145,6 +149,7 @@ Lollipops show vector from each landmark in one shape to another, to visualize s
 3. How to identify cladistic characters.
 
 ##Introduction to Geomorph Package
+See Lecture two in accompanying PDFs.
 
 Geomorph provides a flexible tool for analyzing geometric morphometric data. For more information see `?(geomorph)`.
 
@@ -387,6 +392,7 @@ plotRefToTarget(consensus,shrewdf$coords[,,1])
 Now try it out yourself! Take some photos of your friends faces, ideally from different angles, and try running your own morphometric analysis. Do different faces group separately? Or does error associated with photo angle swamp out the signal?
 
 #Getting into the weeds: GMM analysis in detail
+See Lecture three in accompanying PDFs.
 
 ##Procrustes superimposition
 
@@ -551,6 +557,7 @@ plotRefToTarget(consensus, shape)
 ```
 
 #Statistical analysis of GMM data
+See Lecture four in accompanying PDFs.
 
 ###Ordination methods
 
@@ -756,6 +763,7 @@ plotTangentSpace(tarsalsdf$coords3d, mesh=wmesh, label = tarsalsdf$common, group
 How can our estimates of shape change if we use 3D instead of 2D data? Access an example set of 3D landmarks using `tarsalsdf$lands3d`.
 
 #GMM on Trees
+See Lecture five in accompanying PDFs.
 
 ##Phylogenetic comparative methods
 
@@ -874,14 +882,14 @@ text3d((a$pc.scores[,1:3]+0.02), texts = substr(tarsalsdf$species,1,3))
 
 ##Phylogenetic analyses
 
-Geomorph uses blombergs K to test for strength and significance of phylogenetic signal.
+Geomorph uses Blomberg's K to test for strength and significance of phylogenetic signal.
 
 ```{r, fig.show='hold'}
 #Test for phylogenetic signal
 physignal(tarsalsdf$coords, tree, print.progress = F)
 ```
 
-Now lets try a PGLS analysis in geomorph.
+Now let's try a PGLS analysis in geomorph.
 
 ```{r, fig.show='hold'}
 ##Phylogenetic generalized least squares
@@ -918,4 +926,20 @@ Now try applying some phylogenetic analyses to the tarsals dataset. How does phy
 4. Always use non-parametric statistical tests where possible
 5. GMM analyzes the entire shape, not what happens at just one landmark
 
+For advanced topics see Lecture six of accompanying PDFs.
 
+## Acknowledge and cite packages
+
+When publishing your analyses, please always remember to cite packages that you are using in your scripts.
+
+```{r}
+citation('geomorph')
+citation('StereoMorph')
+```
+
+__Our Sponsors:__
+_National Science Foundation (Sedimentary Geology and Paleobiology Program)_, _National Science Foundation (Earth Rates Initiative)_, _Paleontological Society_, _Society of Vertebrate Paleontology_
+
+![ ](SponsorsLogoAPW.png)
+ 
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
